@@ -1,0 +1,46 @@
+services:
+  app:
+    build: ./service
+    env_file: [.env]
+    environment:
+      DB_URL: ${DB_URL}
+      APP_PORT: ${APP_PORT:-8000}
+    depends_on:
+      pgsql:
+        condition: service_healthy
+    networks: [stacknet]
+    restart: on-failure:3
+    profiles: ["prod"]
+
+  app_dev:
+    build: ./service
+    env_file: [.env]
+    environment:
+      DB_URL: ${DB_URL}
+      APP_PORT: ${APP_PORT:-8001}
+    ports: ["8001:8001"]
+    depends_on:
+      pgsql:
+        condition: service_healthy
+    networks: [stacknet]
+    restart: on-failure:3
+    profiles: ["dev"]
+
+  pgsql:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: appdb
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    networks: [stacknet]
+    profiles: ["dev","prod"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-appdb} -h 127.0.0.1"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 2s
+
+networks: { stacknet: {} }
+volumes:  { pgdata:  {} }
